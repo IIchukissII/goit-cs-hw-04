@@ -1,6 +1,6 @@
 import tempfile
 from pathlib import Path
-from bm import boyer_moore_search
+from bm import boyer_moore_search as bm_search
 
 
 class TempFileHashTable:
@@ -35,40 +35,67 @@ def get_files(path: Path):
     return files
 
 
-def create_temporary_files(files, chunk_size):
-    chunk_data = TempFileHashTable()
-    tmpfile_names = []
-    for file in files:
-        with open(file, "rb") as infile:
-            file_index = 0
+data = TempFileHashTable()
+
+
+import tempfile
+
+def read_text_in_chunks(file_paths, chunk_size, encoding='utf-8-sig'):
+    for file_path in file_paths:
+        with open(file_path, 'r', encoding=encoding) as file:
+            word_buffer = ""
             while True:
-                chunk = infile.read(chunk_size)
+                chunk = file.read(chunk_size)
                 if not chunk:
+                    if word_buffer:
+                        yield word_buffer
                     break
-                with tempfile.NamedTemporaryFile(
-                    delete=False,
-                    prefix=f"{file.name}_chunk{file_index}_",
-                    suffix=".tmp",
-                ) as tmpfile:
-                    tmpfile.write(chunk)
-                    file_index += 1
-                    tmpfile_names.append(tmpfile.name)
-        chunk_data.add_temp_file(file, tmpfile_names)
-    return chunk_data.hash_table
+                words = chunk.split()
+                if len(word_buffer) + len(words[0]) > chunk_size:
+                    yield word_buffer
+                    word_buffer = ""
+                for word in words:
+                    if len(word_buffer) + len(word) <= chunk_size:
+                        word_buffer += " " + word if word_buffer else word
+                    else:
+                        yield word_buffer
+                        word_buffer = word
+
+def save_chunks_to_temp_file(chunks):
+    temp_file = tempfile.NamedTemporaryFile(mode='w', delete=False)
+    for chunk in chunks:
+        temp_file.write(chunk + "\n")
+    temp_file_path = temp_file.name
+    temp_file.close()
+    return temp_file_path
+
+def save_paths_to_hash_table(file_paths, temp_file_paths):
+    hash_table = {}
+    for i in range(len(file_paths)):
+        hash_table[file_paths[i]] = temp_file_paths[i]
+    return hash_table
+
+def get_temp_file_path(hash_table, query_file_path):
+    return hash_table.get(query_file_path, "File path not found in hash table")
+
+
+def find_pattern_in_text(pattern, chunk_data):
+    for temp_file in chunk_data:
+        with open(temp_file, "r", encoding="utf-8") as f:
+            try:
+                chunk_text = f.read()
+            except UnicodeDecodeError:
+                continue
+            if bm_search(chunk_text, pattern):
+                print(f"Pattern found in {temp_file}")
 
 
 def main():
     files = get_files(Path(r".\texts"))
-    tmp_files = create_temporary_files(files, chunk_size=1024)
+    temp_files = create_temporary_files(files, chunk_size=100)
+    pattern = "then"
+    find_pattern_in_text(pattern, temp_files)
 
-    for input_file, temp_files in tmp_files.items():
-        for temp_file in temp_files:
-            with open(temp_file, "rb") as f:
-                print(f.read())
-
-
-if __name__ == "__main__":
-    main()
 
 if __name__ == "__main__":
     main()
