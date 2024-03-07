@@ -18,6 +18,8 @@ class TempFileHashTable:
             del self.hash_table[key]
 
 
+chunk_data = TempFileHashTable()
+
 def get_files(path: Path):
     """
     Function to get a list of files in the specified path.
@@ -35,66 +37,64 @@ def get_files(path: Path):
     return files
 
 
-data = TempFileHashTable()
+def create_temporary_files(file_path, text, tmpfile_names: list):
+    file_index = 0
+    encoded_text = text.encode("utf-8")
+    with tempfile.NamedTemporaryFile(
+        delete=False,
+        prefix=f"chunk{file_index}_",
+        suffix=".tmp",
+    ) as tmpfile:
+        tmpfile.write(encoded_text)  # Write the encoded text to the temporary file
+        file_index += 1
+        tmpfile_names.append(tmpfile.name)
+    chunk_data.add_temp_file(file_path, tmpfile_names)
+    return 1
 
 
-import tempfile
-
-def read_text_in_chunks(file_paths, chunk_size, encoding='utf-8-sig'):
-    for file_path in file_paths:
-        with open(file_path, 'r', encoding=encoding) as file:
-            word_buffer = ""
-            while True:
-                chunk = file.read(chunk_size)
-                if not chunk:
-                    if word_buffer:
-                        yield word_buffer
-                    break
-                words = chunk.split()
-                if len(word_buffer) + len(words[0]) > chunk_size:
-                    yield word_buffer
-                    word_buffer = ""
-                for word in words:
-                    if len(word_buffer) + len(word) <= chunk_size:
-                        word_buffer += " " + word if word_buffer else word
-                    else:
-                        yield word_buffer
-                        word_buffer = word
-
-def save_chunks_to_temp_file(chunks):
-    temp_file = tempfile.NamedTemporaryFile(mode='w', delete=False)
-    for chunk in chunks:
-        temp_file.write(chunk + "\n")
-    temp_file_path = temp_file.name
-    temp_file.close()
-    return temp_file_path
-
-def save_paths_to_hash_table(file_paths, temp_file_paths):
-    hash_table = {}
-    for i in range(len(file_paths)):
-        hash_table[file_paths[i]] = temp_file_paths[i]
-    return hash_table
-
-def get_temp_file_path(hash_table, query_file_path):
-    return hash_table.get(query_file_path, "File path not found in hash table")
+def read_in_chunks(file_object, word_amount=1000):
+    """Lazy function (generator) to read a file piece by piece without splitting words."""
+    while True:
+        data = ""
+        word_count = 0
+        while word_count < word_amount:
+            char = file_object.read(1)
+            if not char:
+                break
+            data += char
+            if char.isspace():
+                word_count += 1
+        if not data:
+            break
+        yield data
 
 
-def find_pattern_in_text(pattern, chunk_data):
-    for temp_file in chunk_data:
-        with open(temp_file, "r", encoding="utf-8") as f:
-            try:
-                chunk_text = f.read()
-            except UnicodeDecodeError:
-                continue
-            if bm_search(chunk_text, pattern):
-                print(f"Pattern found in {temp_file}")
+def process_data(files):
+    tmpfile_names = []
+    for file in files:
+        with open(file, "r", encoding="utf-8") as f:
+            for piece in read_in_chunks(f):
+                create_temporary_files(file, piece, tmpfile_names)
+
+
+def find_pattern(pattern):
+    result = []
+    if not chunk_data.hash_table:
+        return
+    for path, tmp_files in chunk_data.hash_table.items():
+        for tmp_file in tmp_files:
+            with open(tmp_file, "r", encoding="utf-8-sig") as text:
+                text_to_search = text.read()
+                position = bm_search(text_to_search, pattern)
+                if position != -1:
+                    result.append(path)
+    return result
 
 
 def main():
     files = get_files(Path(r".\texts"))
-    temp_files = create_temporary_files(files, chunk_size=100)
-    pattern = "then"
-    find_pattern_in_text(pattern, temp_files)
+    process_data(files)
+    print(find_pattern(r"i am so lonely"))
 
 
 if __name__ == "__main__":
