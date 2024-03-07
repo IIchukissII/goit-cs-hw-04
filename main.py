@@ -1,6 +1,6 @@
 import tempfile
 from pathlib import Path
-from bm import boyer_moore_search
+from bm import boyer_moore_search as bm_search
 
 
 class TempFileHashTable:
@@ -17,6 +17,8 @@ class TempFileHashTable:
         if key in self.hash_table:
             del self.hash_table[key]
 
+
+chunk_data = TempFileHashTable()
 
 def get_files(path: Path):
     """
@@ -35,40 +37,65 @@ def get_files(path: Path):
     return files
 
 
-def create_temporary_files(files, chunk_size):
-    chunk_data = TempFileHashTable()
+def create_temporary_files(file_path, text, tmpfile_names: list):
+    file_index = 0
+    encoded_text = text.encode("utf-8")
+    with tempfile.NamedTemporaryFile(
+        delete=False,
+        prefix=f"chunk{file_index}_",
+        suffix=".tmp",
+    ) as tmpfile:
+        tmpfile.write(encoded_text)  # Write the encoded text to the temporary file
+        file_index += 1
+        tmpfile_names.append(tmpfile.name)
+    chunk_data.add_temp_file(file_path, tmpfile_names)
+    return 1
+
+
+def read_in_chunks(file_object, word_amount=1000):
+    """Lazy function (generator) to read a file piece by piece without splitting words."""
+    while True:
+        data = ""
+        word_count = 0
+        while word_count < word_amount:
+            char = file_object.read(1)
+            if not char:
+                break
+            data += char
+            if char.isspace():
+                word_count += 1
+        if not data:
+            break
+        yield data
+
+
+def process_data(files):
     tmpfile_names = []
     for file in files:
-        with open(file, "rb") as infile:
-            file_index = 0
-            while True:
-                chunk = infile.read(chunk_size)
-                if not chunk:
-                    break
-                with tempfile.NamedTemporaryFile(
-                    delete=False,
-                    prefix=f"{file.name}_chunk{file_index}_",
-                    suffix=".tmp",
-                ) as tmpfile:
-                    tmpfile.write(chunk)
-                    file_index += 1
-                    tmpfile_names.append(tmpfile.name)
-        chunk_data.add_temp_file(file, tmpfile_names)
-    return chunk_data.hash_table
+        with open(file, "r", encoding="utf-8") as f:
+            for piece in read_in_chunks(f):
+                create_temporary_files(file, piece, tmpfile_names)
+
+
+def find_pattern(pattern):
+    result = []
+    if not chunk_data.hash_table:
+        return
+    for path, tmp_files in chunk_data.hash_table.items():
+        for tmp_file in tmp_files:
+            with open(tmp_file, "r", encoding="utf-8-sig") as text:
+                text_to_search = text.read()
+                position = bm_search(text_to_search, pattern)
+                if position != -1:
+                    result.append(path)
+    return result
 
 
 def main():
     files = get_files(Path(r".\texts"))
-    tmp_files = create_temporary_files(files, chunk_size=1024)
+    process_data(files)
+    print(find_pattern(r"i am so lonely"))
 
-    for input_file, temp_files in tmp_files.items():
-        for temp_file in temp_files:
-            with open(temp_file, "rb") as f:
-                print(f.read())
-
-
-if __name__ == "__main__":
-    main()
 
 if __name__ == "__main__":
     main()
