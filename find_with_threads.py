@@ -106,7 +106,7 @@ def save_results_to_txt(results, file_path, pattern=""):
         with open(file_path, "a") as file:
             file.write(f"\nResults for pattern '{pattern}':\n")
             table_data = [(orig_file, count) for orig_file, count in result_dict.items()]
-            table = tabulate(table_data, headers=["File Path", "Count"], tablefmt="grid")
+            table = tabulate(table_data, headers=["File Path", "Count"], tablefmt="pipe")
             file.write(table)
 
 
