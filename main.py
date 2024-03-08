@@ -113,7 +113,7 @@ def save_results_to_txt(results, file_path, pattern=""):
 def main():
     tmp_dir = Path(r".\tmp")
     files = get_files(Path(r".\texts"))
-    pattern = "love"
+    pattern = "friendly"
     file_name = "results.txt"
     if not Path.exists(tmp_dir):
         try:
