@@ -11,8 +11,9 @@ Results for pattern 'something':
 | texts\sherlock.txt     |      46 |
 +------------------------+---------+
 Time with process: 8.918 s
+
 Results for pattern 'something':
-+------------------------+---------+
+:------------------------:---------:
 | File Path              |   Count |
 +========================+=========+
 | texts\baskervilles.txt |      35 |
