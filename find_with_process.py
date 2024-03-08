@@ -102,7 +102,7 @@ def save_results_to_txt(results, file_path):
     with file_write_lock:
         with open(file_path, "a") as file:
             table_data = [(orig_file, count) for orig_file, count in result_dict.items()]
-            table = tabulate(table_data, headers=["File Path", "Count"], tablefmt="grid")
+            table = tabulate(table_data, headers=["File Path", "Count"], tablefmt="pipe")
             file.write(table)
 
 
@@ -112,7 +112,7 @@ def main():
     pattern = "something"
     file_name = "readme.md"
     with open(file_name, "w") as file:
-        file.write(f"Results for pattern '{pattern}':\n")
+        file.write(f"Results for pattern '{pattern}':\n\n")
     if not Path.exists(tmp_dir):
         try:
             Path.mkdir(tmp_dir)
