@@ -91,7 +91,7 @@ def find_pattern(pattern, chunk_data):
 
     return result
 
-def save_results_to_txt(results, file_path, pattern=""):
+def save_results_to_txt(results, file_path):
     result_dict = {}
     for result in results:
         if result[0] not in result_dict:
@@ -100,8 +100,7 @@ def save_results_to_txt(results, file_path, pattern=""):
             result_dict[result[0]] += 1
 
     with file_write_lock:
-        with open(file_path, "w") as file:
-            file.write(f"Results for pattern '{pattern}':\n")
+        with open(file_path, "a") as file:
             table_data = [(orig_file, count) for orig_file, count in result_dict.items()]
             table = tabulate(table_data, headers=["File Path", "Count"], tablefmt="grid")
             file.write(table)
@@ -111,7 +110,9 @@ def main():
     tmp_dir = Path(r".\tmp")
     files = get_files(Path(r".\texts"))
     pattern = "something"
-    file_name = "results_process.txt"
+    file_name = "readme.md"
+    with open(file_name, "w") as file:
+        file.write(f"Results for pattern '{pattern}':\n")
     if not Path.exists(tmp_dir):
         try:
             Path.mkdir(tmp_dir)
@@ -119,7 +120,7 @@ def main():
             print(f"Creation of the directory {tmp_dir} failed")
 
     process_data(files, tmp_dir)
-    save_results_to_txt(find_pattern(pattern, chunk_data), file_name, pattern)
+    save_results_to_txt(find_pattern(pattern, chunk_data), file_name)
 
     if Path.exists(tmp_dir):
         try:
@@ -131,5 +132,5 @@ def main():
 if __name__ == "__main__":
     time = timeit.timeit("main()", number=5)
     main()
-    with open("results_process.txt", "a") as file:
+    with open("readme.md", "a") as file:
         file.write(f"\nTime with process: {round(time, 3)} s")
